@@ -1,0 +1,95 @@
+Problem-1 Solution
+
+def inject_label_noise(dataset, noise_ratio=0.5):
+  """
+    Inject label noises to a given dataset
+
+    Args:
+        dataset (torch.utils.data.Dataset): dataset to add noise to.
+        noise_ratio (float): ratio to add noise . Default, 0.5
+  """
+  noisy_labels = dataset.targets.copy()
+
+  """
+    Q. Write your code to inject label noises.
+    Randomly assign labels to certain data.
+    Using python random library and numpy.random would be helpful.
+  """
+  N = len(noisy_labels)
+  num_noise = int(N * noise_ratio)
+  num_class = 10
+
+  indices_noise = random.sample(range(N), num_noise)
+  label_noise = np.random.choice(num_class, num_noise)
+  
+  for idx, new_label in zip(indices_noise, label_noise):
+    noisy_labels[idx] = new_label
+
+  dataset.targets = noisy_labels
+  return dataset
+
+
+Problem-2-1 Solution
+
+def forward(self, y_pred, y):
+        # cross_entropy = - t * log(p)
+        beta_xentropy = self.beta * F.cross_entropy(y_pred, y, reduction='none')
+
+        ''' Implement here '''
+        y_pred_z = y_pred.detach()
+        z = F.softmax(y_pred_z, dim = 1)
+
+        bootstrap = - (1 - self.beta) * torch.sum(z * F.log_softmax(y_pred, dim = 1), dim = 1)
+
+        return torch.mean(beta_xentropy + bootstrap)
+
+
+
+Problem-2-2 Solution
+
+def forward(self, y_pred, y):
+        # cross_entropy = - t * log(p)
+        beta_xentropy = self.beta * F.cross_entropy(y_pred, y, reduction='none')
+
+        ''' Implement here '''
+        z = F.softmax(y_pred.detach(), dim = 1).argmax(dim = 1)
+        z = z.view(-1,1)
+        bootstrap = F.log_softmax(y_pred, dim = 1).gather(1, z).view(-1)
+        bootstrap = -(1 - self.beta) * bootstrap
+
+        return torch.mean(beta_xentropy + bootstrap)
+
+
+
+Problem-3 Solution
+
+def mixup_data(x, y, alpha=0.2):
+    '''Returns mixed inputs, pairs of targets, and delta'''
+
+    delta = np.random.beta(alpha, alpha)
+    """
+		Q. Write your code to get mixed inputs, pairs of targets, and delta.
+		"""
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size)
+
+    mixed_x = delta * x + (1-delta) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, delta
+
+
+class mixup_criterion(nn.Module):
+    """
+    Args:
+        beta (float): bootstrap parameter. Default, 0.95
+    """
+    def __init__(self, criterion):
+        super(mixup_criterion, self).__init__()
+        self.criterion = criterion
+
+    def forward(self, y_pred, y_a, y_b, delta):
+        """
+        Q. Write your code to compute mixup-loss.
+        """
+        loss = delta * self.criterion(y_pred, y_a) + (1 - delta) * self.criterion(y_pred, y_b)
+        return loss
